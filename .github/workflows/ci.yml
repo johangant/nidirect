@@ -75,6 +75,10 @@ jobs:
       - name: Run PHPCS on changed PHP files in pull requests
         if: github.event_name == 'pull_request'
         shell: bash
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}
+          CODING_STANDARDS_DIRS: web/modules/custom,web/themes/custom
+          IGNORE_DIRS: web/themes/custom/nicsdru_nidirect_theme/node_modules
         run: |
           set -euo pipefail
 
@@ -92,7 +96,14 @@ jobs:
           fi
 
           printf 'Changed files:\n%s\n' "${FILES[@]}"
-          vendor/bin/phpcs "${FILES[@]}"
+          RAW_URL="https://raw.githubusercontent.com/dof-dss/webdev-ci/development/phpcs.sh"
+          curl -fsSL "${RAW_URL}" -o /tmp/phpcs.sh
+          chmod +x /tmp/phpcs.sh
+
+          DRUPAL_DEPLOY_PATH="${PROJECT_ROOT}"
+          PHPCS_CHECK_DIRS="<< parameters.coding_standards_dirs >>"
+          IGNORE_DIRS="<< parameters.ignore_dirs >>"
+          exec /tmp/phpcs.sh "${DRUPAL_DEPLOY_PATH}" "${PHPCS_CHECK_DIRS}" "${IGNORE_DIRS}"
 
       - name: Run full PHPCS scan on push
         if: github.event_name == 'push'
