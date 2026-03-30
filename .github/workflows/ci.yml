@@ -203,7 +203,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "${PROJECT_ROOT}"
-          php vendor/bin/phpstan analyse --memory-limit="${PHP_INI_MEMORY_LIMIT}" ${DEPRECATED_CODE_DIRS}
+          php vendor/bin/phpstan analyse --memory-limit="${PHP_INI_MEMORY_LIMIT}" ${DEPRECATED_CODE_DIRS} -c phpstan.neon
 
   phpstan-disallowed-functions:
     name: PHPStan disallowed functions check
