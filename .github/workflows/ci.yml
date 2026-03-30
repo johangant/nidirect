@@ -157,7 +157,7 @@ jobs:
           curl -fsSL "${RAW_URL}" -o /tmp/phpcs.sh
           chmod +x /tmp/phpcs.sh
 
-          exec /tmp/phpcs.sh "${PROJECT_ROOT}" "${CODING_STANDARDS_DIRS}" "${IGNORE_DIRS}"
+          bash /tmp/phpcs.sh "${PROJECT_ROOT}" "${CODING_STANDARDS_DIRS}" "${IGNORE_DIRS}"
 
       - name: PHPCS analysis for pushes
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -169,7 +169,7 @@ jobs:
           curl -fsSL "${RAW_URL}" -o /tmp/phpcs.sh
           chmod +x /tmp/phpcs.sh
 
-          exec /tmp/phpcs.sh "${PROJECT_ROOT}" "${CODING_STANDARDS_DIRS}" "${IGNORE_DIRS}"
+          bash /tmp/phpcs.sh "${PROJECT_ROOT}" "${CODING_STANDARDS_DIRS}" "${IGNORE_DIRS}"
 
   phpstan-deprecated:
     name: PHPStan deprecated code check
