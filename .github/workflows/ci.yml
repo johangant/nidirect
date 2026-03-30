@@ -138,6 +138,9 @@ jobs:
           coverage: none
           tools: composer
 
+      - name: Restore vendor bin permissions
+        run: chmod +x vendor/bin/* || true
+
       - name: PHPCS analysis for pull requests
         if: github.event_name == 'pull_request'
         shell: bash
