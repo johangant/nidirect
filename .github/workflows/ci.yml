@@ -1,4 +1,3 @@
-# .github/workflows/ci.yml
 name: CI
 
 on:
@@ -10,10 +9,8 @@ on:
       - 'phpcs.xml.dist'
       - 'phpstan.neon'
       - 'phpstan-disallowed.neon'
-      - 'web/modules/custom/**'
-      - 'web/modules/origins/**'
-      - 'web/themes/custom/**'
-      - 'web/themes/origins/**'
+      - 'web/modules/**'
+      - 'web/themes/**'
       - 'web/profiles/**'
       - '.github/workflows/ci.yml'
   push:
@@ -27,220 +24,21 @@ on:
       - 'phpcs.xml.dist'
       - 'phpstan.neon'
       - 'phpstan-disallowed.neon'
-      - 'web/modules/custom/**'
-      - 'web/modules/origins/**'
-      - 'web/themes/custom/**'
-      - 'web/themes/origins/**'
+      - 'web/modules/**'
+      - 'web/themes/**'
       - 'web/profiles/**'
       - '.github/workflows/ci.yml'
-  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
-env:
-  PHP_VERSION: '8.3'
-  PROJECT_ROOT: ${{ github.workspace }}
-  COMPOSER_NO_INTERACTION: 1
-  COMPOSER_PROCESS_TIMEOUT: 0
-  PHP_INI_MEMORY_LIMIT: 1G
-  BUILD_ARTIFACT_NAME: build-workspace
-
-  CODING_STANDARDS_DIRS: >-
-    ${{ github.workspace }}/web/modules/custom
-    ${{ github.workspace }}/web/modules/origins
-    ${{ github.workspace }}/web/themes/custom
-
-  DEPRECATED_CODE_DIRS: >-
-    ${{ github.workspace }}/web/modules/custom
-    ${{ github.workspace }}/web/modules/origins
-    ${{ github.workspace }}/web/themes/custom
-
-  DISALLOWED_FUNCTIONS_DIRS: >-
-    ${{ github.workspace }}/web/modules/custom
-    ${{ github.workspace }}/web/modules/origins
-    ${{ github.workspace }}/web/themes/custom
-
-  IGNORE_DIRS: >-
-    /web/themes/origins/node_modules,
-    /web/themes/custom/nicsdru_nidirect_theme/node_modules
-
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, xml, gd, intl, zip
-          coverage: none
-          tools: composer
-
-      - name: Cache Composer files
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.composer/cache/files
-            ~/.cache/composer/files
-          key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            composer-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress
-
-      - name: Upload build workspace
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.BUILD_ARTIFACT_NAME }}
-          retention-days: 1
-          if-no-files-found: error
-          path: |
-            .
-            !.git
-            !.github
-            !node_modules
-            !**/node_modules
-
-  phpcs:
-    name: PHPCS
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download build workspace
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.BUILD_ARTIFACT_NAME }}
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, xml
-          coverage: none
-          tools: composer
-
-      - name: Restore vendor bin permissions
-        run: chmod +x vendor/bin/* || true
-
-      - name: PHPCS analysis for pull requests
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          BASE_REF="${{ github.event.pull_request.base.ref }}"
-          git fetch origin "${BASE_REF}" --depth=1
-
-          if ! git diff --name-only "origin/${BASE_REF}...HEAD" \
-            | grep -qE '^(web/modules|web/themes|web/profiles)/.*\.(php|module|inc|install|theme|profile)$'; then
-            echo "No changed PHP files requiring PHPCS."
-            exit 0
-          fi
-
-          RAW_URL="https://raw.githubusercontent.com/dof-dss/webdev-ci/development/phpcs.sh"
-          curl -fsSL "${RAW_URL}" -o /tmp/phpcs.sh
-          chmod +x /tmp/phpcs.sh
-
-          bash /tmp/phpcs.sh "${PROJECT_ROOT}" "${CODING_STANDARDS_DIRS}" "${IGNORE_DIRS}"
-
-      - name: PHPCS analysis for pushes
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          RAW_URL="https://raw.githubusercontent.com/dof-dss/webdev-ci/development/phpcs.sh"
-          curl -fsSL "${RAW_URL}" -o /tmp/phpcs.sh
-          chmod +x /tmp/phpcs.sh
-
-          bash /tmp/phpcs.sh "${PROJECT_ROOT}" "${CODING_STANDARDS_DIRS}" "${IGNORE_DIRS}"
-
-  phpstan-deprecated:
-    name: PHPStan deprecated code check
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download build workspace
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.BUILD_ARTIFACT_NAME }}
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, xml, gd
-          coverage: none
-          tools: composer
-
-      - name: Run deprecated code PHPStan
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "${PROJECT_ROOT}"
-          php vendor/bin/phpstan analyse --memory-limit="${PHP_INI_MEMORY_LIMIT}" ${DEPRECATED_CODE_DIRS} -c phpstan.neon
-
-  phpstan-disallowed-functions:
-    name: PHPStan disallowed functions check
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download build workspace
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.BUILD_ARTIFACT_NAME }}
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, xml, gd
-          coverage: none
-          tools: composer
-
-      - name: Run disallowed functions PHPStan
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "${PROJECT_ROOT}"
-
-          if [ -f "phpstan-disallowed.neon" ]; then
-            php vendor/bin/phpstan analyse \
-              -c phpstan-disallowed.neon \
-              --memory-limit="${PHP_INI_MEMORY_LIMIT}" \
-              ${DISALLOWED_FUNCTIONS_DIRS}
-          else
-            echo "phpstan-disallowed.neon not found, skipping disallowed functions check."
-            exit 0
-          fi
+  static-analysis:
+    uses: johangant/webdev-ci/.github/workflows/drupal-static-analysis.yml@github-actions-poc
+    with:
+      php_version: '8.3'
+      coding_standards_dirs: '${{ github.workspace }}/web/modules/custom ${{ github.workspace }}/web/themes/custom'
+      deprecated_code_dirs: '${{ github.workspace }}/web/modules/custom ${{ github.workspace }}/web/themes/custom'
+      disallowed_functions_dirs: '${{ github.workspace }}/web/modules/custom ${{ github.workspace }}/web/themes/custom'
+      ignore_dirs: '/web/themes/custom/nicsdru_nidirect_theme/node_modules'
