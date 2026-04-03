@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Contains nidirect_tour.module.
+ * Contains conde for nidirect_tour.module.
  */
 
 use Drupal\Core\Routing\RouteMatchInterface;
